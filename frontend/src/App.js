@@ -8,6 +8,9 @@ function App() {
   const [colleges, setColleges] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // NEW: location filter state
+  const [locationFilter, setLocationFilter] = useState('');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -26,6 +29,7 @@ function App() {
       });
       
       const data = await response.json();
+      console.log(data);
       
       if (data.success) {
         setColleges(data.colleges);
@@ -51,7 +55,7 @@ function App() {
     <div className="app">
       <div className="header">
         <h1>College Recommendation System</h1>
-        <p>AI-Powered Direct second year College Admissions Predictor(MAHARASHTRA)</p>
+        <p>AI-Powered Direct second year College Admissions Predictor (MAHARASHTRA)</p>
       </div>
       
       <div className="form-container">
@@ -97,8 +101,6 @@ function App() {
               <option value="MECH">Mechanical Engineering</option>
               <option value="CIVIL">Civil Engineering</option>
               <option value="ECE">Electronics & Telecommunication</option>
-              <option value="AI">Artificial Intelligence</option>
-              <option value="DS">Data Science</option>
             </select>
           </div>
 
@@ -106,6 +108,25 @@ function App() {
             {loading ? '🔄 Analyzing...' : '🎓 Get Recommendations'}
           </button>
         </form>
+      </div>
+
+      {/* NEW: City Filter Dropdown */}
+      <div className="form-group" style={{ marginTop: "25px", width: "300px" }}>
+        <label>Filter by Location:</label>
+        <select 
+          value={locationFilter} 
+          onChange={(e) => setLocationFilter(e.target.value)}
+        >
+          <option value="">All Locations</option>
+          <option value="PUNE">Pune</option>
+          <option value="MUMBAI">Mumbai</option>
+          <option value="NASHIK">Nashik</option>
+          <option value="AURANGABAD">Aurangabad</option>
+          <option value="NAGPUR">Nagpur</option>
+          <option value="SANGLI">Sangli</option>
+          <option value="KOLHAPUR">Kolhapur</option>
+          <option value="AMRAVATI">Amravati</option>
+        </select>
       </div>
 
       {loading && (
@@ -124,37 +145,57 @@ function App() {
 
         {colleges.length > 0 ? (
           <div>
-            {colleges.slice(0, 50).map((college, index) => (
-              <div key={index} className={getCardClass(college.chance)}>
-                <div className="college-header">
-                  <h3 className="college-name">{college.college}</h3>
-                  <span className="ml-badge">{college.chance}</span>
+            {[...colleges]
+              // .filter(college => 
+              //   locationFilter === "" ||
+              //   college.college.toUpperCase().includes(locationFilter) 
+              // )
+              .filter(college => {
+  if (locationFilter === "") return true;
+
+  const name = college.college.toUpperCase();
+
+  // special rule for COEP
+  if (locationFilter === "PUNE" && (name.includes("COEP") || name.includes("COLLEGE OF ENGINEERING"))) {
+    return true;
+  }
+
+  return name.includes(locationFilter);
+})
+
+              .reverse()
+              .map((college, index) => (
+                <div key={index} className={getCardClass(college.chance)}>
+                  <div className="college-header">
+                    <h3 className="college-name">{college.college}</h3>
+                    <span className="ml-badge">{college.chance}</span>
+                  </div>
+                  
+                  <div className="college-details">
+                    <div className="detail-item">
+                      <span>📚</span>
+                      <strong>{college.course}</strong>
+                    </div>
+                    <div className="detail-item">
+                      <span>🏷️</span>
+                      <strong>Category:</strong> {college.category}
+                    </div>
+                    <div className="detail-item">
+                      <span>📊</span>
+                      <strong>Cutoff:</strong> {college.cutoff}% | 
+                      <strong> Your Score:</strong> {college.your_score}%
+                    </div>
+                    <div className="detail-item">
+                      <span>📈</span>
+                      <strong>Margin:</strong> {college.safety_margin >= 0 ? '+' : ''}{college.safety_margin}%
+                    </div>
+                    <div className="detail-item">
+                      <span>🤖</span>
+                      <strong>ML Confidence:</strong> {(college.ml_probability * 100).toFixed(1)}%
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="college-details">
-                  <div className="detail-item">
-                    <span>📚</span>
-                    <strong>{college.course}</strong>
-                  </div>
-                  <div className="detail-item">
-                    <span>🏷️</span>
-                    <strong>Category:</strong> {college.category}
-                  </div>
-                  <div className="detail-item">
-                    <span>📊</span>
-                    <strong>Cutoff:</strong> {college.cutoff}% | <strong>Your Score:</strong> {college.your_score}%
-                  </div>
-                  <div className="detail-item">
-                    <span>📈</span>
-                    <strong>Margin:</strong> {college.safety_margin >= 0 ? '+' : ''}{college.safety_margin}%
-                  </div>
-                  <div className="detail-item">
-                    <span>🤖</span>
-                    <strong>ML Confidence:</strong> {(college.ml_probability * 100).toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
         ) : (
           !loading && (

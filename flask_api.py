@@ -9,6 +9,7 @@ import pickle
 # Import your existing ML code
 from ml_api import COLLEGES_DATA
 
+
 def ml_powered_recommender(percentile, caste_input, branch_input):
     print("🎓 ML-POWERED COLLEGE RECOMMENDER")
     print("=" * 45)
@@ -17,6 +18,10 @@ def ml_powered_recommender(percentile, caste_input, branch_input):
     percentile = float(percentile)
     caste_input = caste_input.upper()
     branch_input = branch_input.upper()
+
+    # ✅ Handle "All Branches" case
+    if branch_input == "":
+        branch_input = "ALL"
 
     print(f"\n🤖 ML Model analyzing colleges for {percentile}% - {caste_input} caste...")
 
@@ -29,12 +34,15 @@ def ml_powered_recommender(percentile, caste_input, branch_input):
     # SMART CASTE MAPPING
     caste_mapping = {
         'OPEN': ['GOPEN', 'LOPEN'],
-        'OBC': ['GOBC', 'LOBC', 'GSEBC', 'LSEBC', 'PWD-OBC', 'DEFR-OBC'],
-        'SC': ['GSC', 'LSC', 'PWD-SC'],
-        'ST': ['GST', 'LST', 'PWD-ST'],
+        'OBC': ['GOBC', 'LOBC', 'GSEBC', 'LSEBC', 'DEFR-OBC', 'DEFR-SEBC'],
+        'SC': ['GSC', 'LSC', 'PWDR-SC', 'DEFR-SC'],
+        'ST': ['GST', 'LST', 'PWDR-ST'],
         'EWS': ['EWS'],
         'NT': ['GNTA', 'GNTB', 'GNTC', 'GNTD', 'LNTA', 'LNTB', 'LNTC', 'LNTD'],
-        'PWD': ['PWD-O', 'PWD-OBC', 'PWD-SC', 'PWD-ST', 'PWDR-OBC', 'PWDR-SC']
+        'PWD': ['PWD-O', 'PWDR-OBC', 'PWDR-SEBC', 'PWDR-SC', 'PWDR-ST'],
+        'DEFENSE': ['DEF-O', 'DEFR-OBC', 'DEFR-SC', 'DEFR-SEBC'],
+        'MINORITY': ['MI'],
+        'ORPHAN': ['ORP']
     }
 
     # Get all possible caste categories for the input
@@ -47,17 +55,45 @@ def ml_powered_recommender(percentile, caste_input, branch_input):
                 if caste_input in cat or cat in caste_input:
                     caste_categories.append(cat)
         if not caste_categories:
-            caste_categories = ['GOPEN', 'GOBC', 'GSC', 'GST']
+            caste_categories = ['GOPEN', 'GOBC', 'GSC', 'GST', 'LOPEN', 'LOBC', 'LSC', 'LST', 'EWS']
 
     # Branch groups
     branch_groups = {
         'CS': ['computer science', 'cse', 'computer engineering', 'computer science and engineering',
-               'artificial intelligence', 'ai', 'data science', 'aids', 'aiml', 'ai&ml', 'computer'],
-        'IT': ['information technology', 'it'],
-        'MECH': ['mechanical engineering', 'mechanical'],
-        'CIVIL': ['civil engineering', 'civil'],
-        'ECE': ['electronics', 'ece', 'electronics and communication', 'electronics and telecommunication'],
-        'EEE': ['electrical', 'eee', 'electrical and electronics']
+               'artificial intelligence', 'ai', 'data science', 'aids', 'aiml', 'ai&ml', 'computer', 'cs',
+               'computer technology', 'computer science and design', 'computer science and technology',
+               'computer science and business systems', 'software engineering', 'cyber security',
+               'internet of things', 'iot', 'block chain', 'robotics and artificial intelligence',
+               'data engineering', 'computer science and information technology'],
+        
+        'IT': ['information technology', 'it', 'information tech'],
+        
+        'MECH': ['mechanical engineering', 'mechanical', 'mech', 'mech. engg', 'production engineering',
+                 'automobile engineering', 'automation and robotics', 'mechatronics engineering',
+                 'mechanical & automation engineering', 'mechanical and mechatronics engineering',
+                 'mechanical engineering automobile', 'aeronautical engineering', 'mining engineering'],
+        
+        'CIVIL': ['civil engineering', 'civil', 'civil eng', 'civil and infrastructure engineering',
+                  'civil engineering and planning', 'civil and environmental engineering',
+                  'structural engineering', 'architectural assistantship'],
+        
+        'ECE': ['electronics', 'ece', 'electronics and communication', 'electronics and telecommunication', 
+                'e&c', 'electronics engineering', 'electronics and computer engineering',
+                'electronics and communication engineering', 'vlsi design', 'advanced communication technology',
+                'electronics and biomedical engineering', 'instrumentation engineering',
+                'instrumentation and control engineering'],
+        
+        'EEE': ['electrical', 'eee', 'electrical and electronics', 'electrical engineering',
+                'electrical eng[electronics and power]', 'electrical and electronics engineering',
+                'electrical, electronics and power', 'electrical and computer engineering'],
+        
+        'CHEMICAL': ['chemical engineering', 'food technology', 'oil and paints technology',
+                     'petro chemical engineering', 'pharmaceutical and fine chemical technology',
+                     'plastic and polymer engineering', 'plastic technology', 'oil fats and waxes technology',
+                     'paints technology', 'printing and packing technology', 'oil technology',
+                     'textile technology', 'textile chemistry', 'fashion technology',
+                     'man made textile technology', 'technical textiles', 'bio technology',
+                     'bio medical engineering', 'agricultural engineering', 'safety and fire engineering']
     }
 
     # CREATE AND TRAIN THE BEST ML MODEL
@@ -137,18 +173,26 @@ def ml_powered_recommender(percentile, caste_input, branch_input):
     for college_name, college_data in COLLEGES_DATA.items():
         for course_name, course_data in college_data.items():
             if isinstance(course_data, dict):
-                course_lower = course_name.lower()
+                course_lower = course_name.lower().strip()
 
-                if branch_input != "ALL":
-                    matched = False
-                    if branch_input in branch_groups:
-                        for keyword in branch_groups[branch_input]:
-                            if keyword in course_lower:
-                                matched = True
-                                break
+                # SUPER FLEXIBLE branch filtering
+                if branch_input != "ALL" and branch_input != "":
+                    branch_lower = branch_input.lower().strip()
+                    
+                    # Multiple matching strategies
+                    matched = (
+                        # Direct keyword in course name
+                        branch_lower in course_lower or
+                        # Any branch group keyword in course name
+                        any(keyword in course_lower for keyword in branch_groups.get(branch_input, [])) or
+                        # Course name contains branch abbreviation
+                        any(abbr in course_lower for abbr in [branch_lower, f" {branch_lower} ", f"({branch_lower})"])
+                    )
+                    
                     if not matched:
                         continue
 
+                # Check ALL possible caste categories
                 for caste_category in caste_categories:
                     if caste_category in course_data:
                         cutoff_value = course_data[caste_category]
@@ -173,7 +217,14 @@ def ml_powered_recommender(percentile, caste_input, branch_input):
                         break
 
     # Sort and print summary
-    all_recommendations.sort(key=lambda x: x['ml_probability'], reverse=True)
+    # Sort by safety margin (most negative first = dream colleges)
+    # Sort by CUTOFF (highest first) - TOP COLLEGES FIRST
+    all_recommendations.sort(key=lambda x: x['cutoff'])
+
+    # Add this after sorting to check
+    print(f"🔍 DEBUG SORTING: First 10 cutoffs after sorting:")
+    for i, college in enumerate(all_recommendations[:10]):
+     print(f"   {i+1}. {college['college'][:30]}... | Cutoff: {college['cutoff']}%")
 
     print(f"\n🏫 ML-PREDICTED COLLEGES: {len(all_recommendations)} COLLEGES")
     print("=" * 100)
@@ -205,9 +256,7 @@ def ml_powered_recommender(percentile, caste_input, branch_input):
         print(f"    🤖 ML Prediction: {c['chance']} ({c['ml_probability']:.1%})")
         print()
 
-# Run the main function
     return all_recommendations
-
 
 app = Flask(__name__)
 CORS(app)
@@ -233,3 +282,6 @@ def predict():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+    
+ 
